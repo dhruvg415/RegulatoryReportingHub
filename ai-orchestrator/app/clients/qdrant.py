@@ -1,4 +1,5 @@
 from qdrant_client import QdrantClient
+from qdrant_client.http import models
 from qdrant_client.models import VectorParams, Distance
 import os
 
@@ -32,9 +33,37 @@ def upsert_chunk(point_id: str, vector: list[float], payload: dict):
     )
 
 
-def search(vector: list[float], top_k: int):
+def search(
+    query_vector,
+    top_k: int = 6,
+    filters: dict | None = None
+):
+    qdrant_filters = None
+
+    if filters:
+        must_conditions = []
+
+        for key, value in filters.items():
+            if isinstance(value, list):
+                must_conditions.append(
+                    models.FieldCondition(
+                        key=key,
+                        match=models.MatchAny(any=value)
+                    )
+                )
+            else:
+                must_conditions.append(
+                    models.FieldCondition(
+                        key=key,
+                        match=models.MatchValue(value=value)
+                    )
+                )
+
+        qdrant_filters = models.Filter(must=must_conditions)
+
     return client.search(
         collection_name=COLLECTION,
-        query_vector=vector,
-        limit=top_k
+        query_vector=query_vector,
+        limit=top_k,
+        query_filter=qdrant_filters
     )

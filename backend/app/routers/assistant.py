@@ -3,6 +3,7 @@ from app.services.ai_client import AIOrchestratorClient
 from app.models.institution import Institution
 from app.core.database import get_db
 from sqlalchemy.orm import Session
+from backend.app.schemas import regulator
 
 router = APIRouter(prefix="/assistant", tags=["assistant"])
 
@@ -21,9 +22,11 @@ async def ask_about_institution(
 
     # Build filters from institution context
     filters = {
+        "institution_id": institution.institution_id,
         "jurisdiction": institution.country_of_incorporation,
         "entity_types": institution.legal_entity_types,
-        "products": institution.products
+        "products": institution.products,
+        "regulator": regulator,
     }
 
     ai_client = AIOrchestratorClient()

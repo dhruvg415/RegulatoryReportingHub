@@ -5,6 +5,8 @@ from app.clients.qdrant import init_collection, upsert_chunk, search
 from app.ingestion.parser import parse_document
 from app.ingestion.chunker import chunk_text
 from pydantic import BaseModel
+from datetime import date
+from typing import Optional
 import uuid
 import os
 
@@ -12,6 +14,10 @@ app = FastAPI(title="AI Orchestrator")
 
 class IngestRequest(BaseModel):
     file_path: str
+    institution_id: str
+    regulator: str | None = None
+    regulatory_framework: str | None = None
+    effective_date: date 
     metadata: dict | None = None
 
 # Initialize vector collection on startup
@@ -39,7 +45,12 @@ def embed(req: EmbedRequest):
 @app.post("/chat", response_model=ChatResponse)
 def rag_chat(req: ChatRequest):
     query_vector = embed_text(req.query)
-    hits = search(query_vector, req.top_k)
+
+    hits = search(
+        query_vector,
+        top_k=req.top_k,
+        filters=req.filters
+    )
 
     context_blocks = []
     sources = []
@@ -48,11 +59,11 @@ def rag_chat(req: ChatRequest):
         context_blocks.append(h.payload["text"])
         sources.append({
             "id": h.id,
-            "score": h.score
+            "score": h.score,
+            "metadata": h.payload
         })
 
-    system_prompt_path = f"app/prompts/{req.task}.txt"
-    system_prompt = open(system_prompt_path).read()
+    system_prompt = open(f"app/prompts/{req.task}.txt").read()
 
     user_prompt = f"""
 Context:
@@ -73,18 +84,18 @@ Question:
 @app.post("/ingest")
 def ingest_document(req: IngestRequest):
     """
-    End-to-end ingestion:
+    Institution-aware end-to-end ingestion:
     file -> text -> chunks -> embeddings -> qdrant
     """
 
     if not os.path.exists(req.file_path):
         return {"error": "File not found"}
 
-    filename = os.path.basename(req.file_path)
-
     # Read file bytes
     with open(req.file_path, "rb") as f:
         file_bytes = f.read()
+
+    filename = os.path.basename(req.file_path)
 
     # Parse document
     parsed = parse_document(file_bytes, filename)
@@ -98,7 +109,7 @@ def ingest_document(req: IngestRequest):
 
     inserted_points = []
 
-    # Embed + store each chunk
+    # Embed + store with institution metadata
     for chunk in chunks:
         vector = embed_text(chunk["text"])
         point_id = str(uuid.uuid4())
@@ -106,8 +117,11 @@ def ingest_document(req: IngestRequest):
         payload = {
             "text": chunk["text"],
             "chunk_index": chunk["chunk_index"],
-            "token_count": chunk["token_count"],
-            "source_file": filename,
+            "institution_id": req.institution_id,
+            "filename": filename,
+            "regulator": req.regulator,
+            "framework": req.regulatory_framework,
+            "effective_date": req.effective_date,
             **(req.metadata or {})
         }
 
@@ -116,6 +130,8 @@ def ingest_document(req: IngestRequest):
 
     return {
         "status": "ingested",
+        "institution_id": req.institution_id,
+        "filename": filename,
         "chunks": len(chunks),
         "points": inserted_points
     }

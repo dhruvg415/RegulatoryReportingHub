@@ -1,22 +1,17 @@
-import uuid
-from sqlalchemy import Column, String, Date, JSON
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, String, Text, DateTime, ForeignKey
+from sqlalchemy.sql import func
 from app.core.database import Base
 
 class Document(Base):
     __tablename__ = "documents"
 
-    document_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-
+    id = Column(String, primary_key=True, index=True)
     title = Column(String, nullable=False)
-    type = Column(String, nullable=False)  # rulebook, ITS, RTS, guideline, etc.
-    jurisdiction = Column(String, nullable=False)
+    regulator = Column(String, nullable=False)
+    framework = Column(String, nullable=True)
+    jurisdiction = Column(String, nullable=True)
 
-    source_regulator_id = Column(UUID(as_uuid=True), nullable=True)
-    framework_id = Column(UUID(as_uuid=True), nullable=True)
+    source_url = Column(String, nullable=True)
+    raw_text = Column(Text, nullable=True)
 
-    effective_date = Column(Date, nullable=True)
-    status = Column(String, default="Active")
-
-    storage_path = Column(String, nullable=False)  # MinIO / S3 path
-    metadata = Column(JSON, default=dict)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

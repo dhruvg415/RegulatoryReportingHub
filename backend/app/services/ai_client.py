@@ -13,8 +13,25 @@ class AIOrchestratorClient:
         }
 
         async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.post(f"{self.base_url}/chat", json=payload)
+            resp.raise_for_status()
+            return resp.json()
+
+    async def ingest_document(
+        self,
+        document_id: str,
+        text: str,
+        metadata: dict
+    ):
+        payload = {
+            "document_id": document_id,
+            "text": text,
+            "metadata": metadata
+        }
+
+        async with httpx.AsyncClient(timeout=120.0) as client:
             resp = await client.post(
-                f"{self.base_url}/chat",
+                f"{self.base_url}/ingest",
                 json=payload
             )
             resp.raise_for_status()

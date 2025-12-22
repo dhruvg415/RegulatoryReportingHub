@@ -1,17 +1,22 @@
 from pydantic import BaseModel
-from datetime import date
-from typing import Optional, Dict
-from uuid import UUID
+from typing import Optional
+
+class DocumentCreate(BaseModel):
+    id: str
+    title: str
+    regulator: str
+    framework: Optional[str] = None
+    jurisdiction: Optional[str] = None
+    source_url: Optional[str] = None
+    raw_text: Optional[str] = None
+
 
 class DocumentOut(BaseModel):
-    document_id: UUID
+    id: str
     title: str
-    type: str
-    jurisdiction: str
-    effective_date: Optional[date]
-    status: str
-    storage_path: str
-    metadata: Dict
+    regulator: str
+    framework: Optional[str]
+    jurisdiction: Optional[str]
 
     class Config:
-        from_attributes = True
+        orm_mode = True

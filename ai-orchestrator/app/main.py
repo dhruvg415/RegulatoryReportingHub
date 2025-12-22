@@ -15,9 +15,11 @@ app = FastAPI(title="AI Orchestrator")
 class IngestRequest(BaseModel):
     file_path: str
     institution_id: str
-    regulator: str | None = None
-    regulatory_framework: str | None = None
-    effective_date: date 
+    document_id: str
+    version: int
+    regulator: Optional[str] = None
+    regulatory_framework: Optional[str] = None
+    effective_date: Optional[date] = None
     metadata: dict | None = None
 
 # Initialize vector collection on startup
@@ -118,10 +120,12 @@ def ingest_document(req: IngestRequest):
             "text": chunk["text"],
             "chunk_index": chunk["chunk_index"],
             "institution_id": req.institution_id,
+            "document_id": req.document_id,
+            "version": req.version,
             "filename": filename,
             "regulator": req.regulator,
             "framework": req.regulatory_framework,
-            "effective_date": req.effective_date,
+            "effective_date": req.effective_date.isoformat() if req.effective_date else None,
             **(req.metadata or {})
         }
 
@@ -131,6 +135,8 @@ def ingest_document(req: IngestRequest):
     return {
         "status": "ingested",
         "institution_id": req.institution_id,
+        "document_id": req.document_id,
+        "version": req.version,
         "filename": filename,
         "chunks": len(chunks),
         "points": inserted_points

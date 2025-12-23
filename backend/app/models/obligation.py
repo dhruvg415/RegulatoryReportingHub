@@ -1,26 +1,25 @@
-from sqlalchemy import Column, String, Date, Text, JSON, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, String, Date, JSON, Integer
 from app.core.database import Base
 import uuid
 
 class Obligation(Base):
     __tablename__ = "obligations"
 
-    obligation_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    obligation_id = Column(
+        String, primary_key=True, default=lambda: str(uuid.uuid4())
+    )
 
-    institution_id = Column(UUID(as_uuid=True), ForeignKey("institutions.institution_id"), nullable=False)
+    institution_id = Column(String, index=True)
+    report_id = Column(String, index=True)
 
-    regulator = Column(String, nullable=False)
-    framework = Column(String, nullable=False)
+    regulator = Column(String)
+    framework = Column(String)
 
-    title = Column(String, nullable=False)
-    description = Column(Text, nullable=False)
+    obligation_text = Column(String)
+    reason = Column(String)
 
-    effective_date = Column(Date, nullable=False)
+    source = Column(String)  # "rule" | "ai"
+    version = Column(Integer, default=1)
 
-    # AI explainability
-    rationale = Column(Text, nullable=True)
-    sources = Column(JSON, nullable=True)
-
-    # Optional status tracking
-    status = Column(String, default="active")  # active | superseded | deprecated
+    effective_date = Column(Date)
+    metadata = Column(JSON, default={})

@@ -8,31 +8,31 @@ from app.services.ai_client import AIOrchestratorClient
 router = APIRouter(prefix="/documents", tags=["Documents"])
 
 
-@router.post("/", response_model=DocumentOut)
-async def create_document(
-    data: DocumentCreate,
+@router.post("/documents/{document_id}/ingest")
+async def ingest_document(
+    document_id: str,
     db: Session = Depends(get_db)
 ):
-    existing = db.query(Document).filter(Document.id == data.id).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Document already exists")
+    document = db.query(Document).filter(
+        Document.document_id == document_id
+    ).first()
 
-    doc = Document(**data.dict())
-    db.add(doc)
-    db.commit()
-    db.refresh(doc)
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
 
-    # 🔹 Trigger ingestion in AI Orchestrator
     ai_client = AIOrchestratorClient()
-    await ai_client.ingest_document(
-        document_id=doc.id,
-        text=data.raw_text,
+
+    result = await ai_client.ingest(
+        file_path=document.file_path,
+        institution_id=document.institution_id,
         metadata={
-            "regulator": data.regulator,
-            "framework": data.framework,
-            "jurisdiction": data.jurisdiction,
-            "title": data.title
+            "regulator": document.regulator,
+            "framework": document.framework,
+            "effective_date": document.effective_date.isoformat(),
+            "document_id": document.document_id,
+            "version": document.version
         }
     )
 
-    return doc
+    return result
+
